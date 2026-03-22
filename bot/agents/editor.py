@@ -1,8 +1,8 @@
 from bot.utils.openrouter import call_agent
 from bot.utils.file_loader import read_project_file
 
-MODEL = "anthropic/claude-haiku-4-5"
-TEMPERATURE = 0.4
+MODEL = "anthropic/claude-sonnet-4-6"
+TEMPERATURE = 0.6
 
 SYSTEM_PROMPT = """Ты — строгий редактор. Получаешь черновик поста и делаешь его лучше.
 

@@ -19,12 +19,12 @@ logging.basicConfig(level=logging.INFO)
 MAIN_KEYBOARD = ReplyKeyboardMarkup(
     [
         ["✍️ Написать пост", "✏️ Редактировать пост"],
-        ["📋 Контент-план", "📁 Загрузить файл"],
+        ["📋 Контент-план", "🔍 Оценить пост"],
+        ["📊 Анализ стиля", "📁 Загрузить файл"],
     ],
     resize_keyboard=True,
 )
 
-# Состояние ожидания текста от пользователя
 user_state: dict = {}
 
 
@@ -41,42 +41,67 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     chat_id = update.message.chat_id
 
-    # Ожидаем тему для поста
+    # --- Ожидание ввода от пользователя ---
+
     if user_state.get(chat_id) == "waiting_topic":
         user_state.pop(chat_id)
-        await update.message.reply_text("Генерирую пост... Подожди немного. ⏳")
+        await update.message.reply_text("Генерирую пост... Это займёт около минуты. ⏳")
         result = orchestrator.generate_post(topic=text)
         await update.message.reply_text(f"📝 Готовый пост:\n\n{result['edited']}")
-        await update.message.reply_text(f"🔍 Проверка тестировщика:\n{result['verdict']}")
+        await update.message.reply_text(f"🔍 Вердикт тестировщика:\n{result['verdict']}")
         return
 
-    # Ожидаем текст для редактирования
     if user_state.get(chat_id) == "waiting_edit":
         user_state.pop(chat_id)
         await update.message.reply_text("Редактирую... ⏳")
         result = orchestrator.edit_post(text=text)
         await update.message.reply_text(f"✏️ Отредактированный пост:\n\n{result['edited']}")
-        await update.message.reply_text(f"🔍 Проверка тестировщика:\n{result['verdict']}")
+        await update.message.reply_text(f"🔍 Вердикт тестировщика:\n{result['verdict']}")
         return
 
-    # Кнопки главного меню
+    if user_state.get(chat_id) == "waiting_critique":
+        user_state.pop(chat_id)
+        await update.message.reply_text("Оцениваю... ⏳")
+        from bot.agents import critic
+        result = critic.run(text)
+        await update.message.reply_text(f"🔍 Оценка критика:\n\n{result}")
+        return
+
+    if user_state.get(chat_id) == "waiting_plan_task":
+        user_state.pop(chat_id)
+        await update.message.reply_text("Работаю с планом... ⏳")
+        result = orchestrator.get_plan(text)
+        await update.message.reply_text(f"📋 Контент-план:\n\n{result}")
+        return
+
+    # --- Кнопки главного меню ---
+
     if text == "✍️ Написать пост":
         user_state[chat_id] = "waiting_topic"
         await update.message.reply_text(
-            "Напиши тему или задачу для поста.\n\n"
-            "Например: «Кейс: бот для кафе» или просто «выбери сам из плана»."
+            "Напиши тему или задачу.\n\n"
+            "Например: «Кейс: бот для кафе» или «выбери сам из плана»."
         )
 
     elif text == "✏️ Редактировать пост":
         user_state[chat_id] = "waiting_edit"
-        await update.message.reply_text("Отправь текст поста, который нужно отредактировать.")
+        await update.message.reply_text("Отправь текст поста для редактирования.")
+
+    elif text == "🔍 Оценить пост":
+        user_state[chat_id] = "waiting_critique"
+        await update.message.reply_text("Отправь текст поста — критик оценит его по шкале и даст советы.")
 
     elif text == "📋 Контент-план":
-        plan = read_project_file("content-plan.md")
-        if plan:
-            await update.message.reply_text(f"📋 Контент-план:\n\n{plan[:3000]}")
-        else:
-            await update.message.reply_text("Файл content-plan.md не найден.")
+        user_state[chat_id] = "waiting_plan_task"
+        await update.message.reply_text(
+            "Что сделать с планом?\n\n"
+            "Например: «покажи следующую тему» или «предложи 3 новые темы про ботов»."
+        )
+
+    elif text == "📊 Анализ стиля":
+        await update.message.reply_text("Анализирую загруженные файлы... ⏳")
+        result = orchestrator.analyze_style()
+        await update.message.reply_text(f"📊 Анализ стиля:\n\n{result}")
 
     elif text == "📁 Загрузить файл":
         await update.message.reply_text(
@@ -91,13 +116,14 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Поддерживаются только файлы .md и .json")
         return
 
-    await update.message.reply_text(f"Загружаю файл {doc.file_name}... ⏳")
+    await update.message.reply_text(f"Загружаю {doc.file_name}... ⏳")
     file = await context.bot.get_file(doc.file_id)
     data = await file.download_as_bytearray()
-    path = save_uploaded_file(doc.file_name, bytes(data))
+    save_uploaded_file(doc.file_name, bytes(data))
     await update.message.reply_text(
         f"✅ Файл сохранён: {doc.file_name}\n\n"
-        "Теперь агенты будут учитывать его при написании постов."
+        "Агенты будут учитывать его при написании постов.\n"
+        "Нажми «📊 Анализ стиля» чтобы обновить Tone of Voice."
     )
 
 
@@ -111,7 +137,7 @@ def main():
     app.add_handler(MessageHandler(filters.Document.ALL, handle_document))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    print("Бот запущен. Нажми Ctrl+C для остановки.")
+    print("Бот запущен. Ctrl+C для остановки.")
     app.run_polling()
 
 

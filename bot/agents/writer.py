@@ -2,7 +2,7 @@ from bot.utils.openrouter import call_agent
 from bot.utils.file_loader import read_project_file
 
 MODEL = "anthropic/claude-sonnet-4-6"
-TEMPERATURE = 0.7
+TEMPERATURE = 0.8
 
 SYSTEM_PROMPT = """Ты — копирайтер, который пишет строго в стиле конкретного автора-вайбкодера.
 

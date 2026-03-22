@@ -1,8 +1,8 @@
 from bot.utils.openrouter import call_agent
 from bot.utils.file_loader import read_project_file, load_uploaded_files
 
-MODEL = "anthropic/claude-sonnet-4-6"
-TEMPERATURE = 0.2
+MODEL = "anthropic/claude-opus-4-6"
+TEMPERATURE = 0.7
 
 SYSTEM_PROMPT = """Ты — архитектор контента. Твоя задача — проанализировать примеры постов автора и спланировать структуру нового поста.
 
