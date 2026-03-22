@@ -1,5 +1,9 @@
 import os
+from pathlib import Path
+from dotenv import load_dotenv
 from openai import OpenAI
+
+load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
 client = OpenAI(
     api_key=os.getenv("OPENROUTER_API_KEY"),
